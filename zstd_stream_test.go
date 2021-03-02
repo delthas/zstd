@@ -211,9 +211,16 @@ func TestStreamEmptyPayload(t *testing.T) {
 }
 
 func TestStreamFlush(t *testing.T) {
-	var w bytes.Buffer
-	writer := NewWriter(&w)
-	reader := NewReader(&w)
+	// use an actual os pipe so that
+	// - it's buffered and we don't get a 1-read = 1-write behaviour (io.Pipe)
+	// - reading doesn't send EOF when we're done reading the buffer (bytes.Buffer)
+	pr, pw, err := os.Pipe()
+	failOnError(t, "Failed creating pipe", err)
+	defer pw.Close()
+	defer pr.Close()
+
+	writer := NewWriter(pw)
+	reader := NewReader(pr)
 
 	payload := "cc" // keep the payload short to make sure it will not be automatically flushed by zstd
 	buf := make([]byte, len(payload))
